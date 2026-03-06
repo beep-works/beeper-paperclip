@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { issuesApi } from "../api/issues";
 import { projectsApi } from "../api/projects";
 import { agentsApi } from "../api/agents";
+import { toolsApi } from "../api/tools";
 import { authApi } from "../api/auth";
 import { assetsApi } from "../api/assets";
 import { queryKeys } from "../lib/queryKeys";
@@ -34,6 +35,7 @@ import {
   Tag,
   Calendar,
   Paperclip,
+  Wrench,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { issueStatusText, issueStatusTextDefault, priorityColor, priorityColorDefault } from "../lib/status-colors";
@@ -65,6 +67,7 @@ interface IssueDraft {
   assigneeThinkingEffort: string;
   assigneeChrome: boolean;
   assigneeUseProjectWorkspace: boolean;
+  toolId: string;
 }
 
 const ISSUE_OVERRIDE_ADAPTER_TYPES = new Set(["claude_local", "codex_local", "opencode_local"]);
@@ -174,6 +177,7 @@ export function NewIssueDialog() {
   const [priority, setPriority] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [toolId, setToolId] = useState("");
   const [assigneeOptionsOpen, setAssigneeOptionsOpen] = useState(false);
   const [assigneeModelOverride, setAssigneeModelOverride] = useState("");
   const [assigneeThinkingEffort, setAssigneeThinkingEffort] = useState("");
@@ -205,6 +209,12 @@ export function NewIssueDialog() {
   const { data: projects } = useQuery({
     queryKey: queryKeys.projects.list(effectiveCompanyId!),
     queryFn: () => projectsApi.list(effectiveCompanyId!),
+    enabled: !!effectiveCompanyId && newIssueOpen,
+  });
+
+  const { data: tools } = useQuery({
+    queryKey: queryKeys.tools.list(effectiveCompanyId!),
+    queryFn: () => toolsApi.list(effectiveCompanyId!),
     enabled: !!effectiveCompanyId && newIssueOpen,
   });
   const { data: session } = useQuery({
@@ -303,6 +313,7 @@ export function NewIssueDialog() {
       assigneeThinkingEffort,
       assigneeChrome,
       assigneeUseProjectWorkspace,
+      toolId,
     });
   }, [
     title,
@@ -315,6 +326,7 @@ export function NewIssueDialog() {
     assigneeThinkingEffort,
     assigneeChrome,
     assigneeUseProjectWorkspace,
+    toolId,
     newIssueOpen,
     scheduleSave,
   ]);
@@ -336,6 +348,7 @@ export function NewIssueDialog() {
       setAssigneeThinkingEffort(draft.assigneeThinkingEffort ?? "");
       setAssigneeChrome(draft.assigneeChrome ?? false);
       setAssigneeUseProjectWorkspace(draft.assigneeUseProjectWorkspace ?? true);
+      setToolId(draft.toolId ?? "");
     } else {
       setStatus(newIssueDefaults.status ?? "todo");
       setPriority(newIssueDefaults.priority ?? "");
@@ -345,6 +358,7 @@ export function NewIssueDialog() {
       setAssigneeThinkingEffort("");
       setAssigneeChrome(false);
       setAssigneeUseProjectWorkspace(true);
+      setToolId("");
     }
   }, [newIssueOpen, newIssueDefaults]);
 
@@ -383,6 +397,7 @@ export function NewIssueDialog() {
     setPriority("");
     setAssigneeId("");
     setProjectId("");
+    setToolId("");
     setAssigneeOptionsOpen(false);
     setAssigneeModelOverride("");
     setAssigneeThinkingEffort("");
@@ -419,10 +434,20 @@ export function NewIssueDialog() {
       chrome: assigneeChrome,
       useProjectWorkspace: assigneeUseProjectWorkspace,
     });
+    const selectedTool = (tools ?? []).find((t) => t.id === toolId);
+    const toolContext = selectedTool
+      ? `**Using tool:** ${selectedTool.name}${selectedTool.docsFilePath ? ` (docs: ${selectedTool.docsFilePath})` : ""}
+**Tool URL:** ${selectedTool.url}
+
+---
+
+`
+      : "";
+    const finalDescription = toolContext + (description.trim() || "");
     createIssue.mutate({
       companyId: effectiveCompanyId,
       title: title.trim(),
-      description: description.trim() || undefined,
+      description: finalDescription || undefined,
       status,
       priority: priority || "medium",
       ...(assigneeId ? { assigneeAgentId: assigneeId } : {}),
@@ -491,6 +516,18 @@ export function NewIssueDialog() {
         searchText: project.description ?? "",
       })),
     [orderedProjects],
+  );
+
+  const toolOptions = useMemo<InlineEntityOption[]>(
+    () =>
+      (tools ?? [])
+        .filter((tool) => tool.status === "active")
+        .map((tool) => ({
+          id: tool.id,
+          label: tool.name,
+          searchText: `${tool.name} ${tool.description ?? ""}`,
+        })),
+    [tools],
   );
   const modelOverrideOptions = useMemo<InlineEntityOption[]>(
     () =>
@@ -702,6 +739,39 @@ export function NewIssueDialog() {
                   );
                 }}
               />
+              {toolOptions.length > 0 && (
+                <>
+                  <span>using</span>
+                  <InlineEntitySelector
+                    value={toolId}
+                    options={toolOptions}
+                    placeholder="Tool"
+                    noneLabel="No tool"
+                    searchPlaceholder="Search tools..."
+                    emptyMessage="No tools found."
+                    onChange={setToolId}
+                    renderTriggerValue={(option) =>
+                      option ? (
+                        <>
+                          <Wrench className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{option.label}</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Tool</span>
+                      )
+                    }
+                    renderOption={(option) => {
+                      if (!option.id) return <span className="truncate">{option.label}</span>;
+                      return (
+                        <>
+                          <Wrench className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{option.label}</span>
+                        </>
+                      );
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
