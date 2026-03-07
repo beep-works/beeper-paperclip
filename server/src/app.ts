@@ -152,6 +152,7 @@ export async function createApp(
       appType: "spa",
       server: {
         middlewareMode: true,
+        hmr: { port: 24679 },
         allowedHosts: privateHostnameGateEnabled ? Array.from(privateHostnameAllowSet) : undefined,
       },
     });
