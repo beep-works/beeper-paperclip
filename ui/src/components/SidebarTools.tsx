@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, ChevronRight, Plus, Wrench } from "lucide-react";
+import { ChevronRight, Plus, Wrench } from "lucide-react";
 import { useCompany } from "../context/CompanyContext";
 import { useSidebar } from "../context/SidebarContext";
 import { toolsApi } from "../api/tools";
@@ -83,37 +83,40 @@ export function SidebarTools() {
               )}
             </NavLink>
 
-            <NavLink
-              to="/tools/social-timeline"
-              onClick={() => {
-                if (isMobile) setSidebarOpen(false);
-              }}
-              className={({ isActive }: { isActive: boolean }) =>
-                cn(
-                  "flex items-center gap-2.5 px-3 py-1.5 text-[13px] font-medium transition-colors",
-                  isActive
-                    ? "bg-accent text-foreground"
-                    : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
-                )
-              }
-            >
-              <CalendarClock className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
-              <span className="flex-1 truncate">Social Timeline</span>
-            </NavLink>
-
-            {/* Individual tools */}
-            {activeTools.map((tool) => (
-              <a
-                key={tool.id}
-                href={tool.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 px-3 py-1.5 text-[13px] font-medium text-foreground/80 hover:bg-accent/50 hover:text-foreground transition-colors"
-              >
-                <Wrench className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
-                <span className="flex-1 truncate">{tool.name}</span>
-              </a>
-            ))}
+            {/* Individual tools — internal routes use NavLink, external use <a> */}
+            {activeTools.map((tool) =>
+              tool.url.startsWith("/") ? (
+                <NavLink
+                  key={tool.id}
+                  to={tool.url}
+                  onClick={() => {
+                    if (isMobile) setSidebarOpen(false);
+                  }}
+                  className={({ isActive }: { isActive: boolean }) =>
+                    cn(
+                      "flex items-center gap-2.5 px-3 py-1.5 text-[13px] font-medium transition-colors",
+                      isActive
+                        ? "bg-accent text-foreground"
+                        : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
+                    )
+                  }
+                >
+                  <Wrench className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="flex-1 truncate">{tool.name}</span>
+                </NavLink>
+              ) : (
+                <a
+                  key={tool.id}
+                  href={tool.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 px-3 py-1.5 text-[13px] font-medium text-foreground/80 hover:bg-accent/50 hover:text-foreground transition-colors"
+                >
+                  <Wrench className="shrink-0 h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="flex-1 truncate">{tool.name}</span>
+                </a>
+              )
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
